@@ -1,65 +1,122 @@
 package main
 
 import (
-        "flag"
-        "fmt"
-        "io"
-        "log"
-        "net"
-        "os"
+	"bytes"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net"
+	"os"
 )
+
+type SecureReader struct {
+	r    io.Reader
+	priv *[32]byte
+	pub  *[32]byte
+}
+
+func (s SecureReader) Read(b []byte) (int, error) {
+
+	buf := make([]byte, 1024)
+
+	n, err := s.r.Read(buf)
+	if err == nil {
+		copy(b, buf)
+		return n, nil
+
+	}
+
+	return 0, nil
+}
 
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
-        return nil
+
+	sr := SecureReader{
+		r:    r,
+		priv: priv,
+		pub:  pub,
+	}
+
+	return sr
+}
+
+/*
+- read bytes from io.Writer interface using Write method
+- encrypt bytes
+- write enrypted bytes into w io.Writer from NewSecureWriter
+*/
+type SecureWriter struct {
+	w    io.Writer
+	priv *[32]byte
+	pub  *[32]byte
+}
+
+/* Write bytes from b to known stream pipe */
+func (s SecureWriter) Write(b []byte) (int, error) {
+	r := bytes.NewReader(b)
+
+	if n, err := io.Copy(s.w, r); err != nil {
+		return 0, nil
+	} else {
+		return int(n), nil
+	}
 }
 
 // NewSecureWriter instantiates a new SecureWriter
-func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-        return nil
+func NewSecureWriter(writer io.Writer, priv, pub *[32]byte) io.Writer {
+
+	sw := SecureWriter{
+		w:    writer,
+		priv: priv,
+		pub:  pub,
+	}
+
+	return sw
 }
 
 // Dial generates a private/public key pair,
 // connects to the server, perform the handshake
 // and return a reader/writer.
 func Dial(addr string) (io.ReadWriteCloser, error) {
-        return nil, nil
+	return nil, nil
 }
 
 // Serve starts a secure echo server on the given listener.
 func Serve(l net.Listener) error {
-        return nil
+	return nil
 }
 
 func main() {
-        port := flag.Int("l", 0, "Listen mode. Specify port")
-        flag.Parse()
+	port := flag.Int("l", 0, "Listen mode. Specify port")
+	flag.Parse()
 
-        // Server mode
-        if *port != 0 {
-                l, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
-                if err != nil {
-                        log.Fatal(err)
-                }
-                defer l.Close()
-                log.Fatal(Serve(l))
-        }
+	// Server mode
+	if *port != 0 {
+		l, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer l.Close()
+		log.Fatal(Serve(l))
+	}
 
-        // Client mode
-        if len(os.Args) != 3 {
-                log.Fatalf("Usage: %s <port> <message>", os.Args[0])
-        }
-        conn, err := Dial("localhost:" + os.Args[1])
-        if err != nil {
-                log.Fatal(err)
-        }
-        if _, err := conn.Write([]byte(os.Args[2])); err != nil {
-                log.Fatal(err)
-        }
-        buf := make([]byte, len(os.Args[2]))
-        n, err := conn.Read(buf)
-        if err != nil {
-                log.Fatal(err)
-        }
-        fmt.Printf("%s\n", buf[:n])
+	// Client mode
+	if len(os.Args) != 3 {
+		log.Fatalf("Usage: %s <port> <message>", os.Args[0])
+	}
+	conn, err := Dial("localhost:" + os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := conn.Write([]byte(os.Args[2])); err != nil {
+		log.Fatal(err)
+	}
+	buf := make([]byte, len(os.Args[2]))
+	n, err := conn.Read(buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s\n", buf[:n])
 }
